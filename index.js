@@ -90,7 +90,7 @@ const requestLogger = (req, res, next) => {
 app.use(requestLogger)
 
 // Routes
-app.get('/', ()=>{
+app.get('/', (req,res)=>{
     res.send('Welcome to the RITDC Attendance and Result Management System');
     console.log("Server is listening for incoming requests")
 })
