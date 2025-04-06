@@ -29,11 +29,40 @@ const calculateStatus = (payments, feeAmount, dueDate) => {
 // Get all fee records with student information
 const getAllFeeRecords = async (req, res) => {
   try {
-    const feeRecords = await FeeRecord.find().populate(
+
+    const {page = 1, limit = 20} = req.query;
+
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+
+    if (isNaN(pageNumber) || isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid pagination parameters"
+      });
+    }
+
+    const [feeRecords, total] = await Promise.all([
+      FeeRecord.find()
+      .skip((pageNumber - 1) * limitNumber)
+      .limit(limitNumber)
+      .populate(
       "student",
       "admissionNumber firstName lastName class section"
-    );
-    res.status(200).json({success: true,data:feeRecords, message: "Fee Record successfully fetched."});
+    ),
+    FeeRecord.countDocuments(),
+    ]);
+    res.status(200).json({
+      success: true,
+      data: feeRecords,
+      pagination: {
+        currentPage: pageNumber,
+        totalPages: Math.ceil(total / limitNumber),
+        totalItems:total,
+        itemsPerPage: limitNumber,
+      },
+      message: "Fee Record successfully fetched.",
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -50,7 +79,11 @@ const getFeeRecordById = async (req, res) => {
     if (!feeRecord) {
       return res.status(404).json({ message: "Fee record not found" });
     }
-    res.status(200).json({success: true,data: feeRecord, message: "Fee record successfully fetched."});
+    res.status(200).json({
+      success: true,
+      data: feeRecord,
+      message: "Fee record successfully fetched.",
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -62,7 +95,11 @@ const getStudentFeeRecords = async (req, res) => {
     const studentId = req.params.studentId;
     const feeRecords = await FeeRecord.find({ student: studentId });
 
-    res.status(200).json({success: true,data: feeRecords, message: "Fee records successfully fetched."});
+    res.status(200).json({
+      success: true,
+      data: feeRecords,
+      message: "Fee records successfully fetched.",
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -71,7 +108,7 @@ const getStudentFeeRecords = async (req, res) => {
 // Create new fee record
 const createFeeRecord = async (req, res) => {
   try {
-    const { studentId, serialNumber, feeAmount, academicYear, term } = req.body;
+    const { studentId, feeData } = req.body;
 
     // Verify student exists
     const student = await Student.findById(studentId);
@@ -123,7 +160,11 @@ const updateFeeRecord = async (req, res) => {
       return res.status(404).json({ message: "Fee record not found" });
     }
 
-    res.status(200).json({success: true,data:updatedFeeRecord, message: "Fee record updated successfully."});
+    res.status(200).json({
+      success: true,
+      data: updatedFeeRecord,
+      message: "Fee record updated successfully.",
+    });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -138,7 +179,9 @@ const deleteFeeRecord = async (req, res) => {
       return res.status(404).json({ message: "Fee record not found" });
     }
 
-    res.status(200).json({success: true, message: "Fee record deleted successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "Fee record deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -177,7 +220,16 @@ const addPayment = async (req, res) => {
       "student",
       "admissionNumber firstName lastName"
     );
-    res.status(200).json({success: true,data:populatedRecord, message:"Payment Added Successfully."});
+    res.status(200).json({
+      success: true,
+      data: {...populatedRecord, student:{
+        id: populatedRecord.student._id,
+        admissionNumber: populatedRecord.student.admissionNumber,
+        firstName: populatedRecord.student.firstName,
+        lastName: populatedRecord.student.lastName,
+      }},
+      message: "Payment Added Successfully.",
+    });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -208,7 +260,11 @@ const addNote = async (req, res) => {
       "admissionNumber firstName lastName"
     );
 
-    res.status(200).json({data:populatedRecord, success: true, message: "Note Added Successfully."});
+    res.status(200).json({
+      data: populatedRecord,
+      success: true,
+      message: "Note Added Successfully.",
+    });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -218,23 +274,40 @@ const addNote = async (req, res) => {
 const getFeeRecordsByStatus = async (req, res) => {
   try {
     const status = req.params.status;
+    const {page = 1, limit = 20} = req.query;
 
-    // If status is 'all', return all fee records
-    if (status === "all") {
-      const feeRecords = await FeeRecord.find().populate(
-        "student",
-        "admissionNumber firstName lastName"
-      );
-      return res.status(200).json({data:feeRecords, success: true, message: "Fee Record fetched successfully."});
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+
+    if (isNaN(pageNumber) || isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid pagination parameters"
+      });
     }
 
-    // Otherwise filter by status
-    const feeRecords = await FeeRecord.find({ status }).populate(
+    const [feeRecords, total] = await Promise.all([
+      FeeRecord.find({ status })
+      .skip((pageNumber - 1) * limitNumber)
+      .limit(limitNumber)
+      .populate(
       "student",
-      "admissionNumber firstName lastName"
-    );
+      "admissionNumber firstName lastName class section"
+    ),
+    FeeRecord.find({status}).countDocuments(),
+    ]);
 
-    res.status(200).json({data: feeRecords, success: true, message: "Fee Record successfully fetched."});
+    res.status(200).json({
+      data: feeRecords,
+      pagination: {
+        currentPage: pageNumber,
+        totalPages: Math.ceil(total / limitNumber),
+        totalItems:total,
+        itemsPerPage: limitNumber,
+      },
+      success: true,
+      message: "Fee Record successfully fetched.",
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -255,43 +328,34 @@ const importFeeRecords = async (req, res) => {
     const savedFeeRecords = [];
     const errors = [];
 
-    for (let i = 0; i < feeRecordsData.length; i++) {
+    for (const data of feeRecordsData) {
       try {
-        const data = feeRecordsData[i];
-
-        // Find the student by admission number
-        let student = await Student.findOne({
-          admissionNumber: data.admissionNumber,
-        });
-
-        // If student not found, create a new student with default values
-        if (!student) {
-          student = new Student({
-            admissionNumber: data.admissionNumber,
-            firstName: data.firstName || "N/A",
-            lastName: data.lastName || "N/A",
-            dateOfBirth: data.dateOfBirth || new Date(), // Default to current date
-            class: data.class || "67cd2d19bcae96c2dd022b8a", // Assuming class is optional
-            section: data.section || "67cd2d19bcae96c2dd022b8a", // Assuming section is optional
-            admissionDate: data.admissionDate ||new Date(), // Default to current date
-            profileImage: null,
-            contactNumber: data.contactNumber || "N/A",
-            email: data.email || "N/A",
-            address: data.address || "N/A",
-            parentName: data.parentName || "N/A",
-            parentContact: data.parentContact || "N/A",
-            status: "Active", // Default status
-            notes: data.notes || "N/A",
-          });
-
-          // Save the new student
-          await student.save();
-        }
-
-        // Create the fee record
+        const student = await Student.findOneAndUpdate(
+          { admissionNumber: data.admissionNumber },
+          {
+            $setOnInsert: {
+              firstName: data.firstName || "N/A",
+              lastName: data.lastName || "N/A",
+              dateOfBirth: data.dateOfBirth || new Date(),
+              class: data.class || "67cd2d19bcae96c2dd022b8a",
+              section: data.section || "67cd2d19bcae96c2dd022b8a",
+              admissionDate: data.admissionDate || new Date(),
+              profileImage: null,
+              contactNumber: data.contactNumber || "N/A",
+              email: data.email || "N/A",
+              address: data.address || "N/A",
+              parentName: data.parentName || "N/A",
+              parentContact: data.parentContact || "N/A",
+              status: "Active",
+              notes: data.notes || "N/A",
+            },
+          },
+          { new: true, upsert: true }
+        );
+    
         const feeRecord = new FeeRecord({
           student: student._id,
-          serialNumber: data.serialNumber || `SN${Date.now()}-${i}`,
+          serialNumber: data.serialNumber || `SN${Date.now()}-${index}`,
           feeAmount: data.feeAmount,
           admissionDate: data.admissionDate || new Date(),
           status: data.status || "unpaid",
@@ -299,26 +363,45 @@ const importFeeRecords = async (req, res) => {
           dueDate: data.dueDate,
           payments: data.payments || [],
           notes: data.notes || [],
-          academicYear:
-            data.academicYear || new Date().getFullYear().toString(),
+          academicYear: data.academicYear || new Date().getFullYear().toString(),
           term: data.term || "Annual",
         });
-
-        // Attempt to save the fee record
+    
         const savedRecord = await feeRecord.save();
-        savedFeeRecords.push(savedRecord);
+        savedFeeRecords.push({
+          ...savedRecord.toObject(),
+          student: {
+            id: student._id,
+            firstName: student.firstName,
+            lastName: student.lastName,
+            admissionNumber: student.admissionNumber,
+          },
+        });
       } catch (error) {
-        console.error(`Error saving fee record for index ${i}:`, error);
-        errors.push({ index: i, error: error.message });
+        console.error(`Error saving fee record:`, error);
+        errors.push({ error: error.message });
       }
     }
+    const pageNumber = 1;
+    const limitNumber = 10;
+    const paginatedRecords = savedFeeRecords.slice((pageNumber - 1) * limitNumber, pageNumber * limitNumber);
+    const totalRecords = savedFeeRecords.length;
 
     res.status(201).json({
+      success: true,
       message: `${savedFeeRecords.length} fee records imported successfully`,
-      successCount: savedFeeRecords.length,
-      errorCount: errors.length,
-      errors: errors,
-      feeRecords: savedFeeRecords,
+      data: {
+        successCount: paginatedRecords.length,
+        errorCount: errors.length,
+        errors: errors,
+        feeRecords: paginatedRecords,
+      },
+      pagination: {
+        currentPage: pageNumber,
+        totalPages: Math.ceil(totalRecords / limitNumber),
+        totalItems:totalRecords,
+        itemsPerPage: limitNumber,
+      },
     });
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -364,15 +447,19 @@ const getClassFeeReport = async (req, res) => {
         .length,
     };
 
-    res.status(200).json({success: true,data:{
-      totalStudents: students.length,
-      totalDue,
-      totalCollected,
-      pendingAmount: totalDue - totalCollected,
-      collectionPercentage: (totalCollected / totalDue) * 100,
-      statusCounts,
-      feeRecords,
-    }, message: "Fee Report fetched Successfully."});
+    res.status(200).json({
+      success: true,
+      data: {
+        totalStudents: students.length,
+        totalDue,
+        totalCollected,
+        pendingAmount: totalDue - totalCollected,
+        collectionPercentage: (totalCollected / totalDue) * 100,
+        statusCounts,
+        feeRecords,
+      },
+      message: "Fee Report fetched Successfully.",
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -389,5 +476,5 @@ export default {
   getAllFeeRecords,
   getFeeRecordsByStatus,
   addNote,
-  addPayment
+  addPayment,
 };

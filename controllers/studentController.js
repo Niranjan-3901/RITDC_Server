@@ -6,7 +6,7 @@ import Student from "../models/Student.js";
 
 const getStudents = async (req, res) => {
   try {
-    const { page = 1, limit = 20, class: classId, section: sectionId, ...otherFilters } = req.query;
+    const { page = 1, limit = 20, classFilter, sectionFilter} = req.query;
 
     // Validate pagination parameters
     const pageNumber = parseInt(page);
@@ -20,12 +20,12 @@ const getStudents = async (req, res) => {
     }
 
     // Build filter object
-    const filters = { ...otherFilters };
-    if (classId && mongoose.Types.ObjectId.isValid(classId)) {
-      filters.class = classId;
+    let filters = {};
+    if (classFilter && mongoose.Types.ObjectId.isValid(classFilter)) {
+      filters.class = classFilter;
     }
-    if (sectionId && mongoose.Types.ObjectId.isValid(sectionId)) {
-      filters.section = sectionId;
+    if (sectionFilter && mongoose.Types.ObjectId.isValid(sectionFilter)) {
+      filters.section = sectionFilter;
     }
 
     // Execute query with proper error handling
@@ -50,10 +50,10 @@ const getStudents = async (req, res) => {
       success: true,
       data: transformedStudents,
       pagination: {
-        total,
-        page: pageNumber,
-        limit: limitNumber,
-        pages: Math.ceil(total / limitNumber)
+        currentPage: pageNumber,
+        totalPages: Math.ceil(total / limitNumber),
+        totalItems:total,
+        itemsPerPage: limitNumber,
       },
       messages: "Student fetched successfully."
     });

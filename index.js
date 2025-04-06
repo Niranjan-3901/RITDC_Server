@@ -33,22 +33,58 @@ const allowedOrigins = [
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
   }));
-// app.use(cors(
-//     // { origin: 'http://10.81.23.22:8081',
-//     //     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-//     //     credentials: true,
-//     //     optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
-//     //     allowedHeaders: ['Content-Type', 'Authorization']
-//     // }
-// ));
 app.use(express.json());
 
+let mongo = null;
 // Database connection
-connectDB();
+(async () => {
+  mongo = await connectDB();
+  console.log("✅ MongoDB Connection Established");
+})();
 
 const requestLogger = (req, res, next) => {
-    console.log(`📌 [${new Date().toISOString()}] Requested URL: ${req.method} ${req.originalUrl}`);
-    next(); // Move to the next middleware or route handler
+  // const originalSend = res.send; // Store the original send method
+
+  // res.send = function (body) {
+  //     try {
+  //         let parsedBody = JSON.parse(body); // Convert response body to object (if string)
+
+  //         // Restrict inner array in response body to 10 items
+  //         if (parsedBody && typeof parsedBody === "object") {
+  //             for (const key in parsedBody) {
+  //                 if (Array.isArray(parsedBody[key]) && parsedBody[key].length > 10) {
+  //                     parsedBody[key] = parsedBody[key].slice(0, 10); // Keep only first 10 items
+  //                 }
+  //             }
+  //         }
+
+  //         console.log(
+  //             `📌 [${new Date().toISOString()}] Got Response having code ${
+  //                 res.statusCode
+  //             } with data: ${JSON.stringify(parsedBody, null, 2)}`
+  //         );
+
+  //     } catch (error) {
+  //         console.error("Error parsing response body:", error);
+  //     }
+
+  //     return originalSend.call(this, body); // Send the original response
+  // };
+
+  // Restrict `req.body` logging to 5 items only
+  let loggedBody = req.body;
+  // if (typeof loggedBody === "object") {
+  //     for (const key in loggedBody) {
+  //         if (Array.isArray(loggedBody[key]) && loggedBody[key].length > 5) {
+  //             loggedBody[key] = loggedBody[key].slice(0, 5); // Keep only first 5 items
+  //         }
+  //     }
+  // }
+
+  console.log(`📌 [${new Date().toISOString()}] Requested URL: ${req.method} ${req.originalUrl}`);
+  console.log(`📌 [${new Date().toISOString()}] Requested Body: ${JSON.stringify(loggedBody, null, 2)}`);
+
+  next(); // Move to the next middleware or route handler
 };
 
 app.use(requestLogger)
@@ -67,4 +103,4 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/class', classRoutes);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server running on port ${PORT}`));    
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server running on port ${PORT}`));
