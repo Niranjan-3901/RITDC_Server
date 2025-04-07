@@ -15,24 +15,36 @@ dotenv.config();
 const app = express();
 
 const allowedOrigins = [
-    'http://localhost:3000',  // Web Frontend
-    'http://192.168.1.5:19000', // Expo Debug Mode
-    'http://192.168.1.5:5000', // Mobile API Requests (Expo)
-    'https://your-deployed-app.com' // Production
-  ];
-  
-  app.use(cors({
-    origin: (origin, callback) => {
+  'http://localhost:3000',  // Web Frontend
+  'http://192.168.1.5:19000', // Expo Debug Mode
+  'http://192.168.1.5:5000', // Mobile API Requests (Expo)
+  'https://your-deployed-app.com', // Production
+  undefined
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
+          callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+          console.log(`Blocked request from origin: ${origin}`);
+          callback(new Error('Not allowed by CORS'));
       }
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  }));
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+
+// app.use(cors({
+//   origin: "*",
+//   methods: ['GET', 'POST', 'PUT', 'DELETE'],
+//   credentials: true,
+//   allowedHeaders: ['Content-Type', 'Authorization'],
+// }));
+
+
 app.use(express.json());
 
 let mongo = null;
